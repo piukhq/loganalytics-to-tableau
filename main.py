@@ -11,16 +11,7 @@ from apscheduler.triggers.cron import CronTrigger
 from azure.identity import DefaultAzureCredential
 from azure.monitor.query import LogsQueryClient, LogsQueryStatus
 from pythonjsonlogger import jsonlogger
-from sqlalchemy import (
-    Column,
-    Date,
-    Float,
-    Integer,
-    MetaData,
-    String,
-    Table,
-    create_engine,
-)
+from sqlalchemy import Column, Date, Float, Integer, MetaData, String, Table, create_engine
 
 from settings import settings
 
