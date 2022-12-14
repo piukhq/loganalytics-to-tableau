@@ -2,4 +2,4 @@
 max-line-length = 134
 
 per-file-ignores = 
-    main.py:80:57
+    main.py:W605
