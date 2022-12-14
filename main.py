@@ -72,20 +72,24 @@ def sync() -> None:
     logging.warning("Insterting results")
 
     query = """
-    kubernetes_prod_CL
-    | where kubernetes_pod_namespace_s == "ingress-nginx"
-    | where kubernetes_container_name_s == "controller"
-    | extend event=parse_json(Message)
-    | where event["http_user_agent"] contains "Apache"
+    AzureDiagnostics
+    | where Category == "FrontDoorAccessLog"
+    | where requestUri_s startswith "https://api.gb.bink.com:443/ubiquity" or requestUri_s startswith "https://api.gb.bink.com:443/v2"
+    | extend url = tostring(parse_url(requestUri_s)["Path"])
+    | extend hash_cleanup = replace_regex(url, @"hash-.+", @"{id}")
+    | extend sanitised = replace_regex(hash_cleanup, @"/\d+", @"{id}")
+    | extend endpoint = strcat(sanitised)
+    | extend timetaken = todouble(timeTaken_s)
+    | where userAgent_s != "Checkly/1.0 (https://www.checklyhq.com)"
     | project
-        TimeGenerated,
         _ItemId,
-        event["method"],
-        event["vhost"],
-        event["path"],
-        event["status"],
-        event["upstream_response_time"],
-        event["http_user_agent"]
+        TimeGenerated,
+        timetaken,
+        httpStatusCode_d,
+        endpoint,
+        originName_s,
+        httpMethod_s,
+        userAgent_s
     """
 
     response = client.query_workspace(workspace_id=settings.workspace_id, query=query, timespan=timedelta(days=1))
@@ -106,12 +110,12 @@ def sync() -> None:
             record = {
                 "id": row["_ItemId"],
                 "date": dateutil.parser.parse(str(row["TimeGenerated"])),
-                "method": row["event_method"],
-                "host": row["event_vhost"],
-                "path": row["event_path"],
-                "status": row["event_status"],
-                "response_time": row["event_upstream_response_time"],
-                "user_agent": row["event_http_user_agent"],
+                "method": row["httpMethod_s"],
+                "host": row["originName_s"],
+                "path": row["endpoint"],
+                "status": row["httpStatusCode_d"],
+                "response_time": row["timetaken"],
+                "user_agent": row["userAgent_s"],
             }
 
             insert = stats_table.insert().values(**record)
